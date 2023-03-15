@@ -1,9 +1,11 @@
 "use strict";
-
+const $episodesList = $('#episodes-list');
 const $showsList = $("#shows-list");
 const $episodesArea = $("#episodes-area");
 const $searchForm = $("#search-form");
-
+const $term = $("#search-query").val();
+const missingImage = "https://tinyurl.com/missing-tv";
+const tvMazeApiUrl = "https://api.tvmaze.com/search";
 
 /** Given a search term, search for tv shows that match that query.
  *
@@ -11,33 +13,27 @@ const $searchForm = $("#search-form");
  *    Each show object should contain exactly: {id, name, summary, image}
  *    (if no image URL given by API, put in a default image URL)
  */
+//This will be my search function and API request. I will need to capture the input,
+// insert it as a parameter in my request and return the parsed data saved to a variable.
+//This was actually a simpler function than I initially thought it would be as the 
+//event listener is already handled down below.
+async function getShowsByTerm($term) {
+    const response = await axios({
+      url: `${tvMazeApiUrl}/shows?q=${$term}`,
+       method : "Get"
+    });
+    return response.data.map(result => {
+      const show = result.show;
+      return {
+        id: show.id,
+        name: show.name,
+        summary: show.summary,
+        image: show.image ? show.image.medium : missingImage,
+      };    }); 
+  }
+    
 
-async function getShowsByTerm( /* term */) {
-  // ADD: Remove placeholder & make request to TVMaze search shows API.
-
-  return [
-    {
-      id: 1767,
-      name: "The Bletchley Circle",
-      summary:
-        `<p><b>The Bletchley Circle</b> follows the journey of four ordinary 
-           women with extraordinary skills that helped to end World War II.</p>
-         <p>Set in 1952, Susan, Millie, Lucy and Jean have returned to their 
-           normal lives, modestly setting aside the part they played in 
-           producing crucial intelligence, which helped the Allies to victory 
-           and shortened the war. When Susan discovers a hidden code behind an
-           unsolved murder she is met by skepticism from the police. She 
-           quickly realises she can only begin to crack the murders and bring
-           the culprit to justice with her former friends.</p>`,
-      image:
-          "http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg"
-    }
-  ]
-}
-
-
-/** Given list of shows, create markup for each and to DOM */
-
+/** Given list of shows, create markup for each and to DOM */ 
 function populateShows(shows) {
   $showsList.empty();
 
@@ -46,8 +42,8 @@ function populateShows(shows) {
         `<div data-show-id="${show.id}" class="Show col-md-12 col-lg-6 mb-4">
          <div class="media">
            <img 
-              src="http://static.tvmaze.com/uploads/images/medium_portrait/160/401704.jpg" 
-              alt="Bletchly Circle San Francisco" 
+              src="${show.image}" 
+              alt="${show.name}" 
               class="w-25 mr-3">
            <div class="media-body">
              <h5 class="text-primary">${show.name}</h5>
@@ -64,12 +60,12 @@ function populateShows(shows) {
 }
 
 
-/** Handle search form submission: get shows from API and display.
- *    Hide episodes area (that only gets shown if they ask for episodes)
- */
+// /** Handle search form submission: get shows from API and display.
+//  *    Hide episodes area (that only gets shown if they ask for episodes)
+//  */
 
 async function searchForShowAndDisplay() {
-  const term = $("#searchForm-term").val();
+  const term = $("#search-query").val();
   const shows = await getShowsByTerm(term);
 
   $episodesArea.hide();
@@ -82,12 +78,48 @@ $searchForm.on("submit", async function (evt) {
 });
 
 
-/** Given a show ID, get from API and return (promise) array of episodes:
- *      { id, name, season, number }
- */
+// /** Given a show ID, get from API and return (promise) array of episodes:
+//  *      { id, name, season, number }
+//  */
 
-// async function getEpisodesOfShow(id) { }
+async function getEpisodesOfShow(id) {
+  const response = await axios({
+    url: `${tvMazeApiUrl}/shows/${id}/episodes`,
+     method : "Get"
+  });
+  return response.data.map(e => ({
+      id: e.id,
+      name: e.name,
+      season: e.season,
+      number: e.number,
+    
+  }));
+ }
 
-/** Write a clear docstring for this function... */
+//These two functions are basically copies of the above functions except they are specifically designated
+// for episode searches. 
 
-// function populateEpisodes(episodes) { }
+function populateEpisodes(episodes) { 
+  $episodesList.empty();
+  for (let episode of episodes) {
+    const $episode = $(
+      `<li>
+      ${episode.name}
+      (season ${episode.season}, episode ${episode.number})
+    </li>
+    `);
+  $episodesList.append($episode);
+}
+$episodesArea.show();
+}
+// This will be the event handler for the episode search function and it will link the 
+// search and populate functions together. 
+async function getAndDisplayEpisodes(evt){
+  //I did have to use the solution code for this function. I couldn't for the life of 
+  //me figure out how to get the show id to populate on the click.
+  const showId = $(evt.target).closest(".Show").data("show-id");
+  const episodes = await getEpisodesOfShow(showId);
+  populateEpisodes(episodes);
+}
+
+$showsList.on("click", ".Show-getEpisodes", getAndDisplayEpisodes);
