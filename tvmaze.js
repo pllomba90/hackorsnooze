@@ -122,4 +122,4 @@ async function getAndDisplayEpisodes(evt){
   populateEpisodes(episodes);
 }
 
-$showsList.on("click", ".Show-getEpisodes", getAndDisplayEpisodes);
+$showsList.click(".Show-getEpisodes", getAndDisplayEpisodes);
